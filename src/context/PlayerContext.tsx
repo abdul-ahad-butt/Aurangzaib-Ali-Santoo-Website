@@ -60,6 +60,7 @@ function loadYouTubeAPI(): Promise<void> {
     )
     if (!existingScript) {
       const tag = document.createElement('script')
+      // Standard youtube.com domain matches iframe_api to eliminate cross-domain postMessage mismatch
       tag.src = 'https://www.youtube.com/iframe_api'
       const firstScriptTag = document.getElementsByTagName('script')[0]
       firstScriptTag?.parentNode?.insertBefore(tag, firstScriptTag)
@@ -76,6 +77,8 @@ function loadYouTubeAPI(): Promise<void> {
 export function PlayerProvider({ children }: { children: ReactNode }) {
   const playerRef = useRef<any>(null)
   const isReadyRef = useRef<boolean>(false)
+  const isInitializingRef = useRef<boolean>(false)
+  const currentTrackRef = useRef<Track | null>(null)
   const pendingTrackRef = useRef<Track | null>(null)
   const timerRef = useRef<number | null>(null)
   const volumeRef = useRef<number>(0.8)
@@ -90,51 +93,59 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     audioError: null,
   })
 
-  // Initialize YouTube Audio Player Bridge
-  useEffect(() => {
-    let isMounted = true
+  // Keep ref in sync for callbacks
+  currentTrackRef.current = state.currentTrack
+
+  // Lazy initialize YouTube Player only when user first requests playback
+  const initPlayer = useCallback((videoId: string) => {
+    if (typeof window === 'undefined') return
+    if (isInitializingRef.current || playerRef.current) return
+    isInitializingRef.current = true
 
     loadYouTubeAPI().then(() => {
-      if (!isMounted) return
-
       const checkInterval = setInterval(() => {
         const container = document.getElementById('youtube-audio-player')
         if (container && window.YT && window.YT.Player && !playerRef.current) {
           clearInterval(checkInterval)
 
           try {
-            const currentOrigin = typeof window !== 'undefined' ? window.location.origin : ''
+            // Clean origin without trailing slash
+            const cleanOrigin = window.location.origin.replace(/\/$/, '')
+
             playerRef.current = new window.YT.Player('youtube-audio-player', {
               height: '1',
               width: '1',
-              videoId: tracks[0]?.youtubeId || 'BHcaSvht2f0',
-              host: 'https://www.youtube-nocookie.com',
+              videoId: videoId,
+              host: 'https://www.youtube.com', // Match API script domain
               playerVars: {
-                autoplay: 0,
+                autoplay: 1,
                 controls: 0,
                 disablekb: 1,
                 fs: 0,
-                modestbranding: 1,
-                rel: 0,
                 playsinline: 1,
+                rel: 0,
                 enablejsapi: 1,
-                // Explicit origin parameter eliminates the DOMWindow postMessage error
-                origin: currentOrigin,
-                widget_referrer: currentOrigin,
+                origin: cleanOrigin,
+                widget_referrer: cleanOrigin,
               },
               events: {
                 onReady: (event: any) => {
                   isReadyRef.current = true
+                  isInitializingRef.current = false
                   try {
                     event.target.setVolume(Math.round(volumeRef.current * 100))
+                    event.target.playVideo()
                   } catch (e) {
                     // Ignore
                   }
+                  setState((s) => ({ ...s, isPlaying: true }))
+
                   if (pendingTrackRef.current) {
                     const pt = pendingTrackRef.current
                     pendingTrackRef.current = null
                     try {
                       event.target.loadVideoById(pt.youtubeId)
+                      event.target.playVideo()
                     } catch (e) {
                       // Ignore
                     }
@@ -147,18 +158,19 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
                   } else if (event.data === 2) {
                     setState((s) => ({ ...s, isPlaying: false }))
                   } else if (event.data === 0) {
-                    // Automatically play next track on completion
-                    const currentIdx = tracks.findIndex(
-                      (t) => t.id === pendingTrackRef.current?.id || t.id === tracks[0].id
-                    )
+                    // Auto-advance to next track on completion
+                    const cur = currentTrackRef.current
+                    const currentIdx = tracks.findIndex((t) => t.id === cur?.id)
                     const nextTrack = tracks[(currentIdx + 1) % tracks.length]
                     if (nextTrack && playerRef.current?.loadVideoById) {
                       playerRef.current.loadVideoById(nextTrack.youtubeId)
+                      playerRef.current.playVideo?.()
                       setState((s) => ({
                         ...s,
                         currentTrack: nextTrack,
                         currentTime: 0,
                         duration: parseDuration(nextTrack.duration),
+                        isPlaying: true,
                       }))
                     }
                   }
@@ -169,17 +181,12 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
               },
             })
           } catch (e) {
+            isInitializingRef.current = false
             console.error('Failed to instantiate YouTube player:', e)
           }
         }
-      }, 100)
-
-      return () => clearInterval(checkInterval)
+      }, 50)
     })
-
-    return () => {
-      isMounted = false
-    }
   }, [])
 
   // Poll current time when playing
@@ -221,10 +228,27 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       const track = tracks.find((t) => t.id === trackId)
       if (!track) return
 
-      const p = playerRef.current
       const targetDuration = parseDuration(track.duration)
 
-      if (!isReadyRef.current || !p || typeof p.loadVideoById !== 'function') {
+      // If player is not yet instantiated, lazily start it
+      if (!playerRef.current) {
+        setState((s) => ({
+          ...s,
+          currentTrack: track,
+          hasStarted: true,
+          currentTime: 0,
+          duration: targetDuration,
+          isPlaying: true,
+          audioError: null,
+        }))
+        initPlayer(track.youtubeId)
+        return
+      }
+
+      const p = playerRef.current
+
+      // If player is still loading/not ready
+      if (!isReadyRef.current || typeof p.loadVideoById !== 'function') {
         pendingTrackRef.current = track
         setState((s) => ({
           ...s,
@@ -247,29 +271,39 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       } else {
         // Load and play new track
         p.loadVideoById(track.youtubeId)
+        p.playVideo?.()
         setState((s) => ({
           ...s,
           currentTrack: track,
           hasStarted: true,
           currentTime: 0,
           duration: targetDuration,
+          isPlaying: true,
           audioError: null,
         }))
       }
     },
-    [state.currentTrack, state.isPlaying]
+    [state.currentTrack, state.isPlaying, initPlayer]
   )
 
   const toggle = useCallback(() => {
+    if (!state.currentTrack && tracks.length > 0) {
+      play(tracks[0].id)
+      return
+    }
+
     const p = playerRef.current
+    if (!p) {
+      if (tracks.length > 0) play(tracks[0].id)
+      return
+    }
+
     if (state.isPlaying) {
-      if (p && typeof p.pauseVideo === 'function') {
+      if (typeof p.pauseVideo === 'function') {
         p.pauseVideo()
       }
     } else {
-      if (!state.currentTrack && tracks.length > 0) {
-        play(tracks[0].id)
-      } else if (p && typeof p.playVideo === 'function') {
+      if (typeof p.playVideo === 'function') {
         p.playVideo()
       }
     }
