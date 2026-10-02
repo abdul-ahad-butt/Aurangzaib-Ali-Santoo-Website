@@ -5,9 +5,10 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc && vite build",
+    "build": "tsc && vite build && node scripts/setup-deploy.cjs",
     "preview:cf": "wrangler pages dev dist --d1 DB",
-    "deploy": "npm run build && wrangler pages deploy dist"
+    "preview:worker": "wrangler dev",
+    "deploy": "npm run build && wrangler deploy"
   },
   "dependencies": {
     "framer-motion": "^11.3.19",

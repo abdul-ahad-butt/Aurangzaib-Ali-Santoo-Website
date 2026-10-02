@@ -53,22 +53,11 @@ database_id = "PASTE_ID_HERE"
 npx wrangler d1 execute santoo-bookings --remote --file=schema.sql
 ```
 
-### 3. Create the Pages project
-
-```bash
-npx wrangler pages project create santoo-site
-```
-
-### 4. Deploy
-
+### 3. Deploy
 ```bash
 npm run deploy
 ```
-
-### 5. Bind D1 in Pages settings (if not auto-detected)
-
-Go to **Cloudflare Dashboard → Pages → santoo-site → Settings → Functions → D1 database bindings**
-and add a binding: variable name `DB`, database `santoo-bookings`.
+*(The repository is configured for Cloudflare Workers with Static Assets named `aurangzaib-ali-santoo-website`. It also includes automatic compatibility if deployed via Cloudflare CI).*
 
 ## Local Development
 
