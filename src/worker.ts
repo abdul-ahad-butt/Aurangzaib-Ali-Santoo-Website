@@ -1,5 +1,6 @@
 /// <reference types="@cloudflare/workers-types" />
 import { Hono } from 'hono'
+import { cors } from 'hono/cors'
 import { bookingSchema } from './lib/validation'
 
 type Env = {
@@ -7,6 +8,8 @@ type Env = {
 }
 
 const app = new Hono<{ Bindings: Env }>()
+
+app.use('/api/*', cors())
 
 // ── Health ──────────────────────────────────────────────────────────────────
 app.get('/api/health', (c) => c.json({ ok: true }))
