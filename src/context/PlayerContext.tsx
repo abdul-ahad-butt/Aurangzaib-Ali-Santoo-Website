@@ -103,10 +103,12 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
           clearInterval(checkInterval)
 
           try {
+            const currentOrigin = typeof window !== 'undefined' ? window.location.origin : ''
             playerRef.current = new window.YT.Player('youtube-audio-player', {
-              height: '200',
-              width: '200',
+              height: '1',
+              width: '1',
               videoId: tracks[0]?.youtubeId || 'BHcaSvht2f0',
+              host: 'https://www.youtube-nocookie.com',
               playerVars: {
                 autoplay: 0,
                 controls: 0,
@@ -116,7 +118,9 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
                 rel: 0,
                 playsinline: 1,
                 enablejsapi: 1,
-                origin: window.location.origin,
+                // Explicit origin parameter eliminates the DOMWindow postMessage error
+                origin: currentOrigin,
+                widget_referrer: currentOrigin,
               },
               events: {
                 onReady: (event: any) => {
@@ -331,7 +335,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       {/* Hidden YouTube Audio Player Bridge */}
       <div
         id="youtube-audio-container"
-        className="fixed -bottom-[9999px] -left-[9999px] w-[200px] h-[200px] opacity-0 pointer-events-none"
+        className="fixed -bottom-[9999px] -left-[9999px] w-[1px] h-[1px] opacity-0 pointer-events-none"
         aria-hidden="true"
         tabIndex={-1}
       >

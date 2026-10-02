@@ -4,14 +4,17 @@ import { Menu, X, Instagram } from 'lucide-react'
 import { artist, socials } from '../config/site'
 
 const navLinks = [
-  { label: 'Artistry', href: '#heritage' },
+  { label: 'Artistry', href: '#artistry' },
   { label: 'Music', href: '#music' },
-  { label: 'Performances', href: '#gallery' },
+  { label: 'Performances', href: '#performances' },
   { label: 'Bookings', href: '#bookings' },
 ]
 
 function scrollTo(id: string) {
-  document.querySelector(id)?.scrollIntoView({ behavior: 'smooth' })
+  const el = document.querySelector(id)
+  if (el) {
+    el.scrollIntoView({ behavior: 'smooth' })
+  }
 }
 
 export default function Navbar() {
@@ -23,6 +26,17 @@ export default function Navbar() {
     const onScroll = () => setScrolled(window.scrollY > 40)
     window.addEventListener('scroll', onScroll, { passive: true })
     return () => window.removeEventListener('scroll', onScroll)
+  }, [])
+
+  // Auto-close drawer if window resized to desktop (>= 1024px)
+  useEffect(() => {
+    const onResize = () => {
+      if (window.innerWidth >= 1024) {
+        setOpen(false)
+      }
+    }
+    window.addEventListener('resize', onResize)
+    return () => window.removeEventListener('resize', onResize)
   }, [])
 
   // Close drawer on outside click
@@ -37,7 +51,7 @@ export default function Navbar() {
     return () => document.removeEventListener('mousedown', handle)
   }, [open])
 
-  // Trap focus in drawer
+  // Trap focus & lock body scroll in drawer
   useEffect(() => {
     if (open) {
       drawerRef.current?.focus()
@@ -54,38 +68,45 @@ export default function Navbar() {
   }
 
   return (
-    <nav
+    <header
       className={`fixed top-0 inset-x-0 z-50 transition-all duration-300 ${
-        scrolled ? 'glass border-b border-white/10 shadow-lg' : 'bg-transparent'
+        scrolled ? 'glass border-b border-white/10 shadow-lg' : 'bg-[#0B0B0E]/85 backdrop-blur-md border-b border-white/10'
       }`}
-      role="navigation"
-      aria-label="Main navigation"
+      role="banner"
     >
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between h-16 md:h-20">
-        {/* Brand */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between h-16 md:h-20 gap-4">
+        {/* Brand Logo / Name with shrink-0 protection */}
         <a
           href="#hero"
-          className="font-heading text-lg sm:text-xl md:text-2xl font-light text-gradient-gold tracking-wide focus-visible:outline-gold truncate max-w-[220px] sm:max-w-none flex-shrink-0"
+          className="shrink-0 flex items-center gap-2 group focus-visible:outline-gold"
           onClick={(e) => { e.preventDefault(); scrollTo('#hero') }}
           aria-label={`${artist.name} – home`}
         >
-          {artist.name}
+          <span className="font-heading text-lg sm:text-xl lg:text-2xl font-light text-gradient-gold tracking-wide whitespace-nowrap">
+            {artist.name}
+          </span>
         </a>
 
-        {/* Desktop links */}
-        <div className="hidden md:flex items-center gap-8">
+        {/* Desktop Navigation Links (Hidden below 1024px to prevent overlapping on tablets/mid-screens) */}
+        <nav
+          className="hidden lg:flex items-center gap-8 text-sm uppercase tracking-wider text-muted font-medium"
+          aria-label="Desktop navigation"
+        >
           {navLinks.map((link) => (
             <a
               key={link.href}
               href={link.href}
               onClick={(e) => { e.preventDefault(); scrollTo(link.href) }}
-              className="text-sm text-muted hover:text-ivory tracking-wider uppercase transition-colors duration-200 font-medium"
+              className="text-muted hover:text-gold transition-colors duration-200"
             >
               {link.label}
             </a>
           ))}
-          {/* Social Badges */}
-          <div className="flex items-center gap-2 border-l border-white/10 pl-4 ml-1">
+        </nav>
+
+        {/* Right Actions: Socials + Gold CTA Button with shrink-0 */}
+        <div className="hidden sm:flex items-center gap-3 shrink-0">
+          <div className="flex items-center gap-2 border-l border-white/10 pl-3">
             <a
               href={socials.instagram}
               target="_blank"
@@ -111,7 +132,7 @@ export default function Navbar() {
           </div>
 
           <button
-            className="btn-gold text-sm px-5 py-2.5 min-h-[44px]"
+            className="btn-gold text-sm px-5 py-2.5 min-h-[44px] shrink-0 font-medium"
             onClick={() => scrollTo('#bookings')}
             aria-label="Open event inquiry form"
           >
@@ -119,9 +140,9 @@ export default function Navbar() {
           </button>
         </div>
 
-        {/* Mobile hamburger - min 44x44 tap target */}
+        {/* Mobile / Tablet Hamburger Toggle (Visible below 1024px) */}
         <button
-          className="md:hidden text-ivory p-2.5 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-lg hover:bg-white/10 active:bg-white/20 transition-colors"
+          className="lg:hidden text-ivory p-2.5 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-lg hover:bg-white/10 active:bg-white/20 transition-colors"
           aria-label={open ? 'Close navigation menu' : 'Open navigation menu'}
           aria-expanded={open}
           aria-controls="mobile-menu"
@@ -131,7 +152,7 @@ export default function Navbar() {
         </button>
       </div>
 
-      {/* Mobile drawer */}
+      {/* Mobile / Tablet Drawer (Visible below 1024px) */}
       <AnimatePresence>
         {open && (
           <motion.div
@@ -142,7 +163,7 @@ export default function Navbar() {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
             transition={{ duration: 0.2 }}
-            className="md:hidden bg-[#0B0B0E]/95 backdrop-blur-xl border-b border-white/10 shadow-2xl"
+            className="lg:hidden bg-[#0B0B0E]/95 backdrop-blur-xl border-b border-white/10 shadow-2xl"
             role="dialog"
             aria-modal="true"
             aria-label="Navigation menu"
@@ -192,6 +213,6 @@ export default function Navbar() {
           </motion.div>
         )}
       </AnimatePresence>
-    </nav>
+    </header>
   )
 }

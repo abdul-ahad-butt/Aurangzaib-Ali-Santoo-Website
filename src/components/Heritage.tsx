@@ -17,7 +17,8 @@ const cardVariants = {
 
 export default function Heritage() {
   return (
-    <section id="heritage" className="py-24 md:py-32 bg-obsidian" aria-label="Heritage and biography">
+    <section id="artistry" className="py-24 md:py-32 bg-obsidian relative" aria-label="Heritage and biography">
+      <div id="heritage" className="absolute -top-24" />
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
         <motion.div
           className="text-center mb-16"

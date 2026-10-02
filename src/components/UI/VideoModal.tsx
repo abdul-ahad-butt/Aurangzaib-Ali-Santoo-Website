@@ -84,7 +84,9 @@ export default function VideoModal({ youtubeId, title, socialUrl, onClose }: Vid
         {/* 16:9 Video Container */}
         <div className="relative w-full aspect-video bg-black">
           <iframe
-            src={`https://www.youtube-nocookie.com/embed/${youtubeId}?autoplay=1&rel=0&modestbranding=1`}
+            src={`https://www.youtube-nocookie.com/embed/${youtubeId}?autoplay=1&enablejsapi=1&origin=${
+              typeof window !== 'undefined' ? encodeURIComponent(window.location.origin) : ''
+            }&playsinline=1&rel=0&modestbranding=1`}
             title={title}
             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
             allowFullScreen

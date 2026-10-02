@@ -178,7 +178,8 @@ export default function Gallery() {
   }
 
   return (
-    <section id="gallery" className="py-24 md:py-32 bg-obsidian" aria-label="Gallery section">
+    <section id="performances" className="py-24 md:py-32 bg-obsidian relative" aria-label="Gallery section">
+      <div id="gallery" className="absolute -top-24" />
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
         <motion.div
           className="text-center mb-16"
